@@ -1,4 +1,18 @@
 ---
+- name: Set global variables
+  hosts: localhost
+  connection: local
+  vars:
+    k3s_master_ip: "192.168.56.101"  # Жёстко прописываем IP мастера
+    k3s_version: "v1.26.5+k3s1"      # Указываем конкретную версию
+  
+  tasks:
+    - name: Set facts for all hosts
+      set_fact:
+        k3s_master_ip: "{{ k3s_master_ip }}"
+      delegate_to: "{{ groups.all }}"
+      delegate_facts: true
+
 - name: Install common dependencies
   hosts: all
   become: yes
@@ -18,101 +32,90 @@
   become: yes
   vars:
     kubeconfig_path: "/etc/rancher/k3s/k3s.yaml"
-    k3s_master_ip: "192.168.56.101"
   
   tasks:
-    - name: Install K3s server
+    - name: Install K3s server with fixed IP
       shell: |
         curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION={{ k3s_version }} sh -s - \
           --write-kubeconfig-mode 644 \
           --disable traefik \
-          --node-name k3s-master
+          --node-name k3s-master \
+          --tls-san {{ k3s_master_ip }} \
+          --bind-address {{ k3s_master_ip }} \
+          --advertise-address {{ k3s_master_ip }}
       args:
         creates: "/usr/local/bin/k3s"
-      register: k3s_install
-      failed_when: k3s_install.rc != 0 and "File exists" not in k3s_install.stderr
     
-    - name: Copy kubeconfig with root privileges
+    - name: Verify K3s service
+      command: systemctl is-active k3s
+      register: k3s_status
+      until: k3s_status.rc == 0
+      retries: 10
+      delay: 5
+
+    - name: Copy kubeconfig
       become: yes
       shell: |
         mkdir -p /home/vagrant/.kube && \
         cp {{ kubeconfig_path }} /home/vagrant/.kube/config && \
-        chown vagrant:vagrant /home/vagrant/.kube/config && \
-        chmod 600 /home/vagrant/.kube/config
+        chown vagrant:vagrant /home/vagrant/.kube/config
       args:
         creates: "/home/vagrant/.kube/config"
 
-- name: Verify K3s master is ready
+- name: Verify K3s API
   hosts: control-plane
   tasks:
-    - name: Get master IP
-      shell: hostname -I | awk '{print $1}'
-      register: master_ip
-      delegate_to: "{{ groups['control-plane'][0] }}"
-    
-    - name: Wait for K3s API
+    - name: Wait for K3s API port
       wait_for:
         host: "{{ k3s_master_ip }}"
         port: 6443
-        timeout: 120
-    - name: Verify K3s API health
+        timeout: 180
+    
+    - name: Check API health
       uri:
         url: https://{{ k3s_master_ip }}:6443/healthz
         validate_certs: no
         return_content: yes
       register: api_check
       until: api_check.status == 200
-      retries: 10
+      retries: 15
       delay: 10
-      ignore_errors: yes
-
-    - name: Fail if API not ready
-      fail:
-        msg: "K3s API is not responding properly after 2 minutes"
-      when: api_check.status != 200
 
 - name: Configure workers
   hosts: workers
   become: yes
-  vars:
-    k3s_master_ip: "192.168.56.101"
   tasks:
     - name: Get master node token
       shell: cat /var/lib/rancher/k3s/server/node-token
       register: k3s_token
       delegate_to: "{{ groups['control-plane'][0] }}"
     
-    - name: Verify network connectivity to master
-      wait_for:
-        host: "{{ k3s_master_ip }}"
-        port: 6443
-        timeout: 60
-    
     - name: Install K3s agent
       shell: |
-        # Убрать async/poll и добавить явную проверку
         curl -sfL https://get.k3s.io | \
           K3S_URL=https://{{ k3s_master_ip }}:6443 \
           K3S_TOKEN={{ k3s_token.stdout }} \
           INSTALL_K3S_VERSION={{ k3s_version }} \
-          sh -s - --node-name k3s-worker-{{ ansible_hostname }} > /var/log/k3s-agent-install.log 2>&1
+          sh -s - --node-name k3s-worker-{{ ansible_hostname }}
       args:
         creates: "/usr/local/bin/k3s"
-      register: install_result
-      failed_when: install_result.rc != 0
     
-    - name: Check K3s agent status
-      shell: systemctl is-active k3s-agent
-      register: k3s_status
+    - name: Verify agent status
+      command: systemctl is-active k3s-agent
+      register: agent_status
+      until: agent_status.rc == 0
+      retries: 10
+      delay: 5
+
+- name: Verify cluster
+  hosts: control-plane
+  tasks:
+    - name: Check nodes status
+      command: kubectl get nodes
+      register: nodes
+      until: "'k3s-master' in nodes.stdout and 'k3s-worker' in nodes.stdout"
       retries: 10
       delay: 15
-      until: k3s_status.rc == 0
-      changed_when: false
-
-    - name: Show installation logs if failed
-      debug:
-        msg: "{{ lookup('file', '/var/log/k3s-agent-install.log') }}"
-      when: k3s_status.rc != 0
 
 - name: Install ArgoCD on master
   hosts: control-plane
