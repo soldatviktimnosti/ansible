@@ -51,12 +51,12 @@
     
     - name: Wait for K3s API
       wait_for:
-        host: "{{ master_ip.stdout }}"
+        host: "{{ k3s_master_ip }}"
         port: 6443
         timeout: 120
     - name: Verify K3s API health
       uri:
-        url: https://{{ master_ip.stdout }}:6443/healthz
+        url: https://{{ k3s_master_ip }}:6443/healthz
         validate_certs: no
         return_content: yes
       register: api_check
@@ -74,7 +74,7 @@
   hosts: workers
   become: yes
   vars:
-    k3s_master_ip: "{{ hostvars[groups['control-plane'][0]].master_ip.stdout }}"
+    k3s_master_ip: "192.168.56.101"
   tasks:
     - name: Get master node token
       shell: cat /var/lib/rancher/k3s/server/node-token
