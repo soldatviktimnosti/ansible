@@ -28,6 +28,8 @@
           --node-name k3s-master
       args:
         creates: "/usr/local/bin/k3s"
+      register: k3s_install
+      failed_when: k3s_install.rc != 0 and "File exists" not in k3s_install.stderr
     
     - name: Copy kubeconfig with root privileges
       become: yes
@@ -39,26 +41,44 @@
       args:
         creates: "/home/vagrant/.kube/config"
 
+- name: Verify K3s master is ready
+  hosts: control-plane
+  tasks:
+    - name: Get master IP
+      shell: hostname -I | awk '{print $1}'
+      register: master_ip
+      delegate_to: "{{ groups['control-plane'][0] }}"
+    
+    - name: Wait for K3s API
+      wait_for:
+        host: "{{ master_ip.stdout }}"
+        port: 6443
+        timeout: 120
+
 - name: Configure workers
   hosts: workers
   become: yes
+  vars:
+    k3s_master_ip: "{{ hostvars[groups['control-plane'][0]].master_ip.stdout }}"
   tasks:
     - name: Get master node token
       shell: cat /var/lib/rancher/k3s/server/node-token
       register: k3s_token
       delegate_to: "{{ groups['control-plane'][0] }}"
-    - name: Verify connection to master
+    
+    - name: Verify network connectivity to master
       wait_for:
-        host: "{{ groups['control-plane'][0] }}"
+        host: "{{ k3s_master_ip }}"
         port: 6443
-        timeout: 30
-
-    - name: Install K3s agent with logging
+        timeout: 60
+    
+    - name: Install K3s agent
       shell: |
+        set -o pipefail
         {
           echo "Starting K3s agent installation at $(date)"
           curl -sfL https://get.k3s.io | \
-            K3S_URL=https://{{ groups['control-plane'][0] }}:6443 \
+            K3S_URL=https://{{ k3s_master_ip }}:6443 \
             K3S_TOKEN={{ k3s_token.stdout }} \
             INSTALL_K3S_VERSION={{ k3s_version }} \
             sh -s - --node-name k3s-worker-{{ ansible_hostname }}
@@ -66,18 +86,21 @@
         } > /var/log/k3s-agent-install.log 2>&1
       args:
         creates: "/usr/local/bin/k3s"
-      async: 600  # 10 минут таймаут
+      async: 600
       poll: 0
     
     - name: Check K3s agent status
-      shell: systemctl status k3s-agent --no-pager
+      shell: systemctl is-active k3s-agent
       register: k3s_status
-      failed_when: false
+      retries: 5
+      delay: 10
+      until: k3s_status.rc == 0
+      changed_when: false
 
     - name: Show installation logs if failed
       debug:
         msg: "{{ lookup('file', '/var/log/k3s-agent-install.log') }}"
-      when: "'active (running)' not in k3s_status.stdout"
+      when: k3s_status.rc != 0
 
 - name: Install ArgoCD on master
   hosts: control-plane
@@ -88,7 +111,7 @@
         curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
       args:
         creates: "/usr/local/bin/helm"
-
+    
     - name: Check if ArgoCD already installed
       shell: |
         helm status argocd -n argocd >/dev/null 2>&1 && echo "installed" || echo "not_installed"
@@ -108,8 +131,8 @@
           --set server.service.nodePort=30007
       environment:
         KUBECONFIG: "/home/vagrant/.kube/config"
-      when: argocd_status.stdout != "installed"
-
+      when: argocd_status.stdout == "not_installed"
+    
     - name: Get ArgoCD password
       shell: |
         kubectl -n argocd get secret argocd-initial-admin-secret \
@@ -124,6 +147,6 @@
       debug:
         msg: |
           ArgoCD доступен по адресу:
-          http://{{ hostvars[groups['control-plane'][0]].ansible_host }}:30007
+          http://{{ k3s_master_ip }}:30007
           Логин: admin
           Пароль: {{ argocd_password.stdout }}
