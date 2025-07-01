@@ -18,6 +18,7 @@
   become: yes
   vars:
     kubeconfig_path: "/etc/rancher/k3s/k3s.yaml"
+    k3s_master_ip: "192.168.56.101"
   
   tasks:
     - name: Install K3s server
