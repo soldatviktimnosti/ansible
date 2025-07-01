@@ -54,12 +54,27 @@
         host: "{{ master_ip.stdout }}"
         port: 6443
         timeout: 120
+    - name: Verify K3s API health
+      uri:
+        url: https://{{ master_ip.stdout }}:6443/healthz
+        validate_certs: no
+        return_content: yes
+      register: api_check
+      until: api_check.status == 200
+      retries: 10
+      delay: 10
+      ignore_errors: yes
+
+    - name: Fail if API not ready
+      fail:
+        msg: "K3s API is not responding properly after 2 minutes"
+      when: api_check.status != 200
 
 - name: Configure workers
   hosts: workers
   become: yes
   vars:
-    k3s_master_ip: "192.168.56.101"
+    k3s_master_ip: "{{ hostvars[groups['control-plane'][0]].master_ip.stdout }}"
   tasks:
     - name: Get master node token
       shell: cat /var/lib/rancher/k3s/server/node-token
@@ -74,26 +89,22 @@
     
     - name: Install K3s agent
       shell: |
-        set -o pipefail
-        {
-          echo "Starting K3s agent installation at $(date)"
-          curl -sfL https://get.k3s.io | \
-            K3S_URL=https://{{ k3s_master_ip }}:6443 \
-            K3S_TOKEN={{ k3s_token.stdout }} \
-            INSTALL_K3S_VERSION={{ k3s_version }} \
-            sh -s - --node-name k3s-worker-{{ ansible_hostname }}
-          echo "Installation completed at $(date)"
-        } > /var/log/k3s-agent-install.log 2>&1
+        # Убрать async/poll и добавить явную проверку
+        curl -sfL https://get.k3s.io | \
+          K3S_URL=https://{{ k3s_master_ip }}:6443 \
+          K3S_TOKEN={{ k3s_token.stdout }} \
+          INSTALL_K3S_VERSION={{ k3s_version }} \
+          sh -s - --node-name k3s-worker-{{ ansible_hostname }} > /var/log/k3s-agent-install.log 2>&1
       args:
         creates: "/usr/local/bin/k3s"
-      async: 600
-      poll: 0
+      register: install_result
+      failed_when: install_result.rc != 0
     
     - name: Check K3s agent status
       shell: systemctl is-active k3s-agent
       register: k3s_status
-      retries: 5
-      delay: 10
+      retries: 10
+      delay: 15
       until: k3s_status.rc == 0
       changed_when: false
 
