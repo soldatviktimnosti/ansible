@@ -59,7 +59,7 @@
   hosts: workers
   become: yes
   vars:
-    k3s_master_ip: "{{ hostvars[groups['control-plane'][0]].master_ip.stdout }}"
+    k3s_master_ip: "192.168.56.101"
   tasks:
     - name: Get master node token
       shell: cat /var/lib/rancher/k3s/server/node-token
