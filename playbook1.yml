@@ -47,6 +47,11 @@
       shell: cat /var/lib/rancher/k3s/server/node-token
       register: k3s_token
       delegate_to: "{{ groups['control-plane'][0] }}"
+    - name: Verify connection to master
+      wait_for:
+        host: "{{ groups['control-plane'][0] }}"
+        port: 6443
+        timeout: 30
 
     - name: Install K3s agent with logging
       shell: |
@@ -55,11 +60,24 @@
           curl -sfL https://get.k3s.io | \
             K3S_URL=https://{{ groups['control-plane'][0] }}:6443 \
             K3S_TOKEN={{ k3s_token.stdout }} \
+            INSTALL_K3S_VERSION={{ k3s_version }} \
             sh -s - --node-name k3s-worker-{{ ansible_hostname }}
           echo "Installation completed at $(date)"
         } > /var/log/k3s-agent-install.log 2>&1
       args:
         creates: "/usr/local/bin/k3s"
+      async: 600  # 10 минут таймаут
+      poll: 0
+    
+    - name: Check K3s agent status
+      shell: systemctl status k3s-agent --no-pager
+      register: k3s_status
+      failed_when: false
+
+    - name: Show installation logs if failed
+      debug:
+        msg: "{{ lookup('file', '/var/log/k3s-agent-install.log') }}"
+      when: "'active (running)' not in k3s_status.stdout"
 
 - name: Install ArgoCD on master
   hosts: control-plane
