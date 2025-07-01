@@ -1,0 +1,111 @@
+---
+- name: Install common dependencies
+  hosts: all
+  become: yes
+  tasks:
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+      when: ansible_os_family == 'Debian'
+
+    - name: Install required packages
+      apt:
+        name: [curl, wget, git, net-tools]
+        state: present
+
+- name: Configure K3s master
+  hosts: control-plane
+  become: yes
+  vars:
+    kubeconfig_path: "/etc/rancher/k3s/k3s.yaml"
+  
+  tasks:
+    - name: Install K3s server
+      shell: |
+        curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION={{ k3s_version }} sh -s - \
+          --write-kubeconfig-mode 644 \
+          --disable traefik \
+          --node-name k3s-master
+      args:
+        creates: "/usr/local/bin/k3s"
+    
+    - name: Copy kubeconfig with root privileges
+      become: yes
+      shell: |
+        mkdir -p /home/vagrant/.kube && \
+        cp {{ kubeconfig_path }} /home/vagrant/.kube/config && \
+        chown vagrant:vagrant /home/vagrant/.kube/config && \
+        chmod 600 /home/vagrant/.kube/config
+      args:
+        creates: "/home/vagrant/.kube/config"
+
+- name: Configure workers
+  hosts: workers
+  become: yes
+  tasks:
+    - name: Get master node token
+      shell: cat /var/lib/rancher/k3s/server/node-token
+      register: k3s_token
+      delegate_to: "{{ groups['control-plane'][0] }}"
+
+    - name: Install K3s agent with logging
+      shell: |
+        {
+          echo "Starting K3s agent installation at $(date)"
+          curl -sfL https://get.k3s.io | \
+            K3S_URL=https://{{ groups['control-plane'][0] }}:6443 \
+            K3S_TOKEN={{ k3s_token.stdout }} \
+            sh -s - --node-name k3s-worker-{{ ansible_hostname }}
+          echo "Installation completed at $(date)"
+        } > /var/log/k3s-agent-install.log 2>&1
+      args:
+        creates: "/usr/local/bin/k3s"
+
+- name: Install ArgoCD on master
+  hosts: control-plane
+  become: yes
+  tasks:
+    - name: Install Helm
+      shell: |
+        curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+      args:
+        creates: "/usr/local/bin/helm"
+
+    - name: Check if ArgoCD already installed
+      shell: |
+        helm status argocd -n argocd >/dev/null 2>&1 && echo "installed" || echo "not_installed"
+      register: argocd_status
+      environment:
+        KUBECONFIG: "/home/vagrant/.kube/config"
+      changed_when: false
+
+    - name: Deploy ArgoCD
+      shell: |
+        helm repo add argo https://argoproj.github.io/argo-helm
+        helm repo update
+        helm upgrade --install argocd argo/argo-cd \
+          --namespace argocd \
+          --create-namespace \
+          --set server.service.type=NodePort \
+          --set server.service.nodePort=30007
+      environment:
+        KUBECONFIG: "/home/vagrant/.kube/config"
+      when: argocd_status.stdout != "installed"
+
+    - name: Get ArgoCD password
+      shell: |
+        kubectl -n argocd get secret argocd-initial-admin-secret \
+          -o jsonpath="{.data.password}" | base64 -d || echo "PASSWORD_NOT_READY"
+      register: argocd_password
+      retries: 5
+      delay: 10
+      until: argocd_password.stdout != "PASSWORD_NOT_READY"
+      changed_when: false
+
+    - name: Show access info
+      debug:
+        msg: |
+          ArgoCD доступен по адресу:
+          http://{{ hostvars[groups['control-plane'][0]].ansible_host }}:30007
+          Логин: admin
+          Пароль: {{ argocd_password.stdout }}
