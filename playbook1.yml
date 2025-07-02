@@ -1,18 +1,3 @@
----
-- name: Set global variables
-  hosts: localhost
-  connection: local
-  vars:
-    k3s_master_ip: "192.168.56.101"  # Жёстко прописываем IP мастера
-    k3s_version: "v1.33.1+k3s1"      # Указываем конкретную версию
-  
-  tasks:
-    - name: Set facts for all hosts
-      set_fact:
-        k3s_master_ip: "{{ k3s_master_ip }}"
-      delegate_to: "{{ groups.all }}"
-      delegate_facts: true
-
 - name: Install common dependencies
   hosts: all
   become: yes
@@ -90,7 +75,7 @@
     k3s_master_ip: "192.168.56.101"
     kubeconfig_path: "/etc/rancher/k3s/k3s.yaml"
     k3s_version: "v1.33.1+k3s1"
-    
+
   tasks:
     - name: Get master node token
       shell: cat /var/lib/rancher/k3s/server/node-token
