@@ -63,7 +63,27 @@
         host: "{{ k3s_master_ip }}"
         port: 6443
         timeout: 180
+
+    - name: Check API certificates
+      shell: |
+        [ -f /var/lib/rancher/k3s/server/tls/server-ca.crt ] && \
+        [ -f /var/lib/rancher/k3s/server/tls/serving-kube-apiserver.crt ] && \
+        echo "OK" || echo "MISSING"
+      register: cert_check
+      failed_when: cert_check.stdout != "OK"
+
+    - name: Fix certificates if needed
+      shell: |
+        sudo rm -f /var/lib/rancher/k3s/server/tls/*
+        sudo systemctl restart k3s
+      when: cert_check.stdout != "OK"
     
+    - name: Wait for API port (extended timeout)
+      wait_for:
+        host: "{{ k3s_master_ip }}"
+        port: 6443
+        timeout: 300
+
     - name: Check API health
       uri:
         url: https://{{ k3s_master_ip }}:6443/healthz
@@ -128,7 +148,7 @@
     k3s_master_ip: "192.168.56.101"
     kubeconfig_path: "/etc/rancher/k3s/k3s.yaml"
     k3s_version: "v1.33.1+k3s1"
-    
+
   tasks:
     - name: Install Helm
       shell: |
