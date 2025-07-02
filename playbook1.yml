@@ -11,6 +11,7 @@
       apt:
         name: [curl, wget, git, net-tools]
         state: present
+  
 
 - name: Configure K3s master
   hosts: control-plane
@@ -178,6 +179,8 @@
       delay: 15
       until: argocd_password.stdout != "PASSWORD_NOT_READY"
       changed_when: false
+      environment:
+        KUBECONFIG: "/home/vagrant/.kube/config"
 
     - name: Show access info
       debug:
