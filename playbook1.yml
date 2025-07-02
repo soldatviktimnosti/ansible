@@ -4,7 +4,7 @@
   connection: local
   vars:
     k3s_master_ip: "192.168.56.101"  # Жёстко прописываем IP мастера
-    k3s_version: "v1.26.5+k3s1"      # Указываем конкретную версию
+    k3s_version: "v1.33.1+k3s1"      # Указываем конкретную версию
   
   tasks:
     - name: Set facts for all hosts
@@ -31,7 +31,9 @@
   hosts: control-plane
   become: yes
   vars:
+    k3s_master_ip: "192.168.56.101"
     kubeconfig_path: "/etc/rancher/k3s/k3s.yaml"
+    k3s_version: "v1.33.1+k3s1" 
   
   tasks:
     - name: Install K3s server with fixed IP
@@ -84,6 +86,11 @@
 - name: Configure workers
   hosts: workers
   become: yes
+  vars:
+    k3s_master_ip: "192.168.56.101"
+    kubeconfig_path: "/etc/rancher/k3s/k3s.yaml"
+    k3s_version: "v1.33.1+k3s1"
+    
   tasks:
     - name: Get master node token
       shell: cat /var/lib/rancher/k3s/server/node-token
