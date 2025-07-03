@@ -202,14 +202,12 @@
           http://{{ k3s_master_ip }}:30007
           Логин: admin
           Пароль: {{ argocd_password.stdout }}
-        environment:
-          KUBECONFIG: "/home/vagrant/.kube/config"
+     
 
     - name: Debug ArgoCD password raw output
       debug:
         var: argocd_password
-        environment:
-          KUBECONFIG: "/home/vagrant/.kube/config"
+      "
 
     - name: Show ArgoCD access information
       debug:
@@ -218,8 +216,7 @@
           http://192.168.56.101:30007
           Логин: admin
           Пароль: {{ argocd_password.stdout }}
-        environment:
-          KUBECONFIG: "/home/vagrant/.kube/config"
+    
 
     - name: Show current user
       shell: whoami
