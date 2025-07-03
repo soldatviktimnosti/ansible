@@ -154,7 +154,7 @@
         helm status argocd -n argocd >/dev/null 2>&1 && echo "installed" || echo "not_installed"
       register: argocd_status
       environment:
-        KUBECONFIG: "/home/vagrant/.kube/config"
+      KUBECONFIG: "/home/vagrant/.kube/config"
       changed_when: false
 
     - name: Deploy ArgoCD
@@ -169,7 +169,7 @@
           --set server.service.nodePort=30007 \
           --set server.extraArgs[0]=--insecure
       environment:
-        KUBECONFIG: "/home/vagrant/.kube/config"
+      KUBECONFIG: "/home/vagrant/.kube/config"
       when: argocd_status.stdout == "not_installed"
     
     - name: Wait for ArgoCD initial admin secret to be created
@@ -180,7 +180,7 @@
       until: secret_check.rc == 0
       changed_when: false
       environment:
-        KUBECONFIG: "/home/vagrant/.kube/config"
+      KUBECONFIG: "/home/vagrant/.kube/config"
     
     - name: Get ArgoCD password
       become: yes
@@ -193,7 +193,7 @@
       until: argocd_password.stdout != "PASSWORD_NOT_READY"
       changed_when: false
       environment:
-        KUBECONFIG: "/home/vagrant/.kube/config"
+      KUBECONFIG: "/home/vagrant/.kube/config"
 
     - name: Show access info
       debug:
@@ -228,7 +228,7 @@
     - name: Show KUBECONFIG env
       shell: echo $KUBECONFIG
       environment:
-        KUBECONFIG: "/home/vagrant/.kube/config"
+      KUBECONFIG: "/home/vagrant/.kube/config"
       register: kubeconfig_path
 
     - debug:
