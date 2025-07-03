@@ -172,6 +172,16 @@
         KUBECONFIG: "/home/vagrant/.kube/config"
       when: argocd_status.stdout == "not_installed"
     
+    - name: Wait for ArgoCD initial admin secret to be created
+      shell: kubectl -n argocd get secret argocd-initial-admin-secret --no-headers
+      register: secret_check
+      retries: 10
+      delay: 15
+      until: secret_check.rc == 0
+      changed_when: false
+      environment:
+        KUBECONFIG: "/home/vagrant/.kube/config"
+    
     - name: Get ArgoCD password
       become: yes
       shell: |
@@ -192,10 +202,14 @@
           http://{{ k3s_master_ip }}:30007
           Логин: admin
           Пароль: {{ argocd_password.stdout }}
+        environment:
+          KUBECONFIG: "/home/vagrant/.kube/config"
 
     - name: Debug ArgoCD password raw output
       debug:
         var: argocd_password
+        environment:
+          KUBECONFIG: "/home/vagrant/.kube/config"
 
     - name: Show ArgoCD access information
       debug:
@@ -204,6 +218,9 @@
           http://192.168.56.101:30007
           Логин: admin
           Пароль: {{ argocd_password.stdout }}
+        environment:
+          KUBECONFIG: "/home/vagrant/.kube/config"
+
     - name: Show current user
       shell: whoami
       register: current_user
