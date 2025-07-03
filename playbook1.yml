@@ -189,3 +189,16 @@
           http://{{ k3s_master_ip }}:30007
           Логин: admin
           Пароль: {{ argocd_password.stdout }}
+
+    - name: Debug ArgoCD password raw output
+      debug:
+        var: argocd_password
+
+    - name: Show ArgoCD access information
+      debug:
+        msg: |
+          ArgoCD доступен по адресу:
+          http://192.168.56.101:30007
+          Логин: admin
+          Пароль: {{ argocd_password.stdout }}
+
