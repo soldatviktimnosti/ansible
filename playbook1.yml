@@ -167,7 +167,7 @@
           --set server.service.nodePort=30007 \
           --set server.extraArgs[0]=--insecure
       environment:
-      KUBECONFIG: "/home/vagrant/.kube/config"
+        KUBECONFIG: "/home/vagrant/.kube/config"
       when: argocd_status.stdout == "not_installed"
   
 
