@@ -153,9 +153,7 @@
       shell: |
         helm status argocd -n argocd >/dev/null 2>&1 && echo "installed" || echo "not_installed"
       register: argocd_status
-      environment:
-      KUBECONFIG: "/home/vagrant/.kube/config"
-      changed_when: false
+     
 
     - name: Deploy ArgoCD
       become: yes
