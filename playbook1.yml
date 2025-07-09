@@ -63,10 +63,10 @@
 
     - name: Direct port check
       wait_for:
-        host: "127.0.0.1"
+        host: "192.168.56.101"
         port: 6443
         timeout: 60
-      delegate_to: "{{ groups['control-plane'][0] }}"
+      delegate_to: "{{ groups['workers'][0] }}"
 
     - name: Verify API with admin credentials
       shell: |
