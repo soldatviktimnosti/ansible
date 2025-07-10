@@ -110,7 +110,7 @@ cd "$WORK_DIR" || exit
 if [ ! -d "vagrant/ansible/.git" ] || \
    [ "$(git -C vagrant/ansible config --get remote.origin.url)" != "$ANSIBLE_REPO" ]; then
     rm -rf vagrant/ansible
-    git clone "$ANSIBLE_REPO" vagrant || fail "Failed to clone Ansible repo"
+    git clone "$ANSIBLE_REPO" vagrant/ansible || fail "Failed to clone Ansible repo"
 fi
 
 
