@@ -23,10 +23,11 @@ fail() { echo "Error: $1" >&2; exit 1; }
 # 1. Клонируем и выполняем Vagrant репозиторий
 echo "=== Cloning Vagrant repo ==="
 
-# Клонируем только если папки нет или она пустая
-if [ ! -d "vagrant" ] || [ -z "$(ls -A vagrant 2>/dev/null)" ]; then
-    git clone "$VAGRANT_REPO" vagrant || fail "Failed to clone Vagrant repo"
+if [ ! -d "vagrant/.git" ] || \
+   [ "$(git -C vagrant config --get remote.origin.url)" != "$VAGRANT_REPO" ]; then
+    git clone "$VAGRANT_REPO" vagrant || fail "Failed to clone vagrant repo"
 fi
+
 
 
 cd vagrant || exit
@@ -104,8 +105,12 @@ cd "$WORK_DIR" && vagrant status
 # 2. Клонируем и выполняем Ansible репозиторий
 echo "=== Cloning Ansible repo ==="
 cd "$WORK_DIR" || exit
-git clone "$ANSIBLE_REPO" ansible || fail "Failed to clone Ansible repo"
-cd ansible || exit
+
+if [ ! -d "vagrant/.git" ] || \
+   [ "$(git -C vagrant config --get remote.origin.url)" != "$ANSIBLE_REPO" ]; then
+    git clone "$ANSIBLE_REPO" vagrant || fail "Failed to clone Ansible repo"
+fi
+
 
 echo "=== Running Ansible playbook ==="
 ansible-playbook -i hosts.ini playbook1.yml || fail "Ansible playbook failed"
