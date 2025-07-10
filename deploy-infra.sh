@@ -37,7 +37,6 @@ cleanup_vagrant() {
         
     vagrant global-status --prune
     rm -rf .vagrant/
-    rm -rf $WORK_DIR
     unset VAGRANT_CWD
     sleep 5
 }
