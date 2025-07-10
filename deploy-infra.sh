@@ -83,11 +83,12 @@ EOF
     # Применяем сразу
     source ~/.vagrant_env
 
-    echo "VAGRANT_CWD установлен в: $VAGRANT_DIR"
+    echo "VAGRANT_CWD установлен в: $WORK_DIR"
     echo "Теперь можешь использовать команду 'vstatus' в любом терминале"
     
     # Проверка
     echo "Текущий контекст:"
+    cd "$WORK_DIR" && vagrant status
 }
 
 # Фиксируем состояние (если нужно)
@@ -97,7 +98,7 @@ sync_vagrant_metadata
 
 
 echo "=== Готово! Состояние ВМ: ==="
-vagrant status 
+cd "$WORK_DIR" && vagrant status
 
 
 # 2. Клонируем и выполняем Ansible репозиторий
