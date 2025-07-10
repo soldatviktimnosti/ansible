@@ -9,7 +9,13 @@ ANSIBLE_REPO=$2
 
 # Временная директория
 WORK_DIR="/tmp/infra_deploy"
-mkdir -p "$WORK_DIR" && cd "$WORK_DIR" || exit 1
+
+if [ ! -d "$WORK_DIR" ]; then
+    mkdir -p "$WORK_DIR"
+fi
+
+
+cd "$WORK_DIR" || exit 1
 
 # Функция для обработки ошибок
 fail() { echo "Error: $1" >&2; exit 1; }
