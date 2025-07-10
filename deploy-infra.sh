@@ -25,6 +25,7 @@ echo "=== Cloning Vagrant repo ==="
 
 if [ ! -d "vagrant/.git" ] || \
    [ "$(git -C vagrant config --get remote.origin.url)" != "$VAGRANT_REPO" ]; then
+    rm -rf vagrant
     git clone "$VAGRANT_REPO" vagrant || fail "Failed to clone vagrant repo"
 fi
 
@@ -106,8 +107,9 @@ cd "$WORK_DIR" && vagrant status
 echo "=== Cloning Ansible repo ==="
 cd "$WORK_DIR" || exit
 
-if [ ! -d "vagrant/.git" ] || \
-   [ "$(git -C vagrant config --get remote.origin.url)" != "$ANSIBLE_REPO" ]; then
+if [ ! -d "vagrant/ansible/.git" ] || \
+   [ "$(git -C vagrant/ansible config --get remote.origin.url)" != "$ANSIBLE_REPO" ]; then
+    rm -rf vagrant/ansible
     git clone "$ANSIBLE_REPO" vagrant || fail "Failed to clone Ansible repo"
 fi
 
