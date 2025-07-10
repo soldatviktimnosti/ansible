@@ -22,7 +22,13 @@ fail() { echo "Error: $1" >&2; exit 1; }
 
 # 1. Клонируем и выполняем Vagrant репозиторий
 echo "=== Cloning Vagrant repo ==="
-git clone "$VAGRANT_REPO" vagrant || fail "Failed to clone Vagrant repo"
+
+# Клонируем только если папки нет или она пустая
+if [ ! -d "vagrant" ] || [ -z "$(ls -A vagrant 2>/dev/null)" ]; then
+    git clone "$VAGRANT_REPO" vagrant || fail "Failed to clone Vagrant repo"
+fi
+
+
 cd vagrant || exit
 
 echo "=== Starting Vagrant VMs ==="
