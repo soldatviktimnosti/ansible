@@ -105,7 +105,7 @@ cd "$WORK_DIR/vagrant" && vagrant status
 
 # 2. Клонируем и выполняем Ansible репозиторий
 echo "=== Cloning Ansible repo ==="
-cd "$WORK_DIR/vagrant" || exit
+cd "$WORK_DIR" || exit
 
 if [ ! -d "vagrant/ansible/.git" ] || \
    [ "$(git -C vagrant/ansible config --get remote.origin.url)" != "$ANSIBLE_REPO" ]; then
@@ -113,7 +113,7 @@ if [ ! -d "vagrant/ansible/.git" ] || \
     git clone "$ANSIBLE_REPO" vagrant/ansible || fail "Failed to clone Ansible repo"
 fi
 
-cd "$WORK_DIR/vagrant/ansible" || exit 
+cd "./vagrant/ansible" || exit 
 
 
 echo "=== Running Ansible playbook ==="
