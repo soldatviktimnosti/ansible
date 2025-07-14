@@ -25,13 +25,13 @@ echo "=== Cloning Vagrant repo ==="
 
 if [ ! -d "vagrant/.git" ] || \
    [ "$(git -C vagrant config --get remote.origin.url)" != "$VAGRANT_REPO" ]; then
-    rm -rf vagrant
+    rm -rf ./vagrant
     git clone "$VAGRANT_REPO" vagrant || fail "Failed to clone vagrant repo"
 fi
 
 
 
-cd vagrant || exit
+cd './vagrant' || exit
 
 echo "=== Starting Vagrant VMs ==="
 # Очистка предыдущего состояния
@@ -65,16 +65,16 @@ vagrant up || fail "Vagrant up failed"
 
 sync_vagrant_metadata() {
     echo "=== Синхронизация метаданных Vagrant ==="
-    cd "$WORK_DIR" || exit 1
-    chmod 755 "$WORK_DIR"
+    cd "$WORK_DIR/vagrant" || exit 1
+    chmod 755 "$WORK_DIR/vagrant"
     # Принудительно обновляем глобальный статус
     vagrant global-status --prune
     echo "Создаём ~/.vagrant_env с содержимым:"
-    echo "export VAGRANT_CWD=\"$WORK_DIR\""
-    echo "alias vstatus=\"cd $WORK_DIR && vagrant status\""
+    echo "export VAGRANT_CWD=\"$WORK_DIR/vagrant\""
+    echo "alias vstatus=\"cd $WORK_DIR/vagrant && vagrant status\""
     cat > ~/.vagrant_env <<EOF
-export VAGRANT_CWD="$WORK_DIR"
-alias vstatus="cd $WORK_DIR && vagrant status"
+export VAGRANT_CWD="$WORK_DIR/vagrant"
+alias vstatus="cd $WORK_DIR/vagrant && vagrant status"
 EOF
 
 
@@ -85,12 +85,12 @@ EOF
     # Применяем сразу
     source ~/.vagrant_env
 
-    echo "VAGRANT_CWD установлен в: $WORK_DIR"
+    echo "VAGRANT_CWD установлен в: $WORK_DIR/vagrant"
     echo "Теперь можешь использовать команду 'vstatus' в любом терминале"
     
     # Проверка
     echo "Текущий контекст:"
-    cd "$WORK_DIR" && vagrant status
+    cd "$WORK_DIR/vagrant" && vagrant status
 }
 
 # Фиксируем состояние (если нужно)
@@ -100,18 +100,20 @@ sync_vagrant_metadata
 
 
 echo "=== Готово! Состояние ВМ: ==="
-cd "$WORK_DIR" && vagrant status
+cd "$WORK_DIR/vagrant" && vagrant status
 
 
 # 2. Клонируем и выполняем Ansible репозиторий
 echo "=== Cloning Ansible repo ==="
-cd "$WORK_DIR" || exit
+cd "$WORK_DIR/vagrant" || exit
 
 if [ ! -d "vagrant/ansible/.git" ] || \
    [ "$(git -C vagrant/ansible config --get remote.origin.url)" != "$ANSIBLE_REPO" ]; then
-    rm -rf vagrant/ansible
+    rm -rf ./vagrant/ansible
     git clone "$ANSIBLE_REPO" vagrant/ansible || fail "Failed to clone Ansible repo"
 fi
+
+cd "$WORK_DIR/vagrant/ansible" || exit 
 
 
 echo "=== Running Ansible playbook ==="
