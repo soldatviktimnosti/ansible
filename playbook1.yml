@@ -158,6 +158,8 @@
 
     - name: Install ArgoCD without waiting
       shell: |
+        helm repo add argo https://argoproj.github.io/argo-helm --force-update
+        helm repo update
         helm upgrade --install argocd argo/argo-cd \
           --namespace argocd \
           --create-namespace \
