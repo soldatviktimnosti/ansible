@@ -165,6 +165,8 @@
           --set server.service.nodePort=30007 \
           --set server.extraArgs[0]=--insecure \
           --wait=false  # ← НЕ ждем
+      environment:
+        KUBECONFIG: "/etc/rancher/k3s/k3s.yaml"
 
     - name: Wait for ArgoCD to be ready
       shell: |
