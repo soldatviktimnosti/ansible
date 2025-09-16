@@ -166,7 +166,6 @@
           --set server.service.type=NodePort \
           --set server.service.nodePort=30007 \
           --set server.extraArgs[0]=--insecure \
-          --no-hooks \
           --wait=false  # ← НЕ ждем
       environment:
         KUBECONFIG: "/etc/rancher/k3s/k3s.yaml"
