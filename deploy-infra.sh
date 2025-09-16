@@ -23,11 +23,8 @@ fail() { echo "Error: $1" >&2; exit 1; }
 # 1. Клонируем и выполняем Vagrant репозиторий
 echo "=== Cloning Vagrant repo ==="
 
-if [ ! -d "vagrant/.git" ] || \
-   [ "$(git -C vagrant config --get remote.origin.url)" != "$VAGRANT_REPO" ]; then
-    rm -rf ./vagrant
-    git clone "$VAGRANT_REPO" vagrant || fail "Failed to clone vagrant repo"
-fi
+rm -rf ./vagrant
+git clone "$VAGRANT_REPO" vagrant || fail "Failed to clone vagrant repo"
 
 
 
